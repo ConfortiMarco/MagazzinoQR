@@ -1,0 +1,115 @@
+{{> header}}
+<h1>Scannerizza QR Code (Screen Sharing)</h1>
+<video id="camera" width="600" height="400" autoplay></video>
+<div id="info_product">
+    <p>ID del prodotto scansionato: <span id="product-id">N/A</span></p>
+</div>
+<button id="start-sharing">Leggi QR</button>
+<br>
+<br>
+<div class="col" id="manageProduct" style="display: none;">
+    <div class="row">
+        <a id="editProduct"><button class="btn btn-warning"><i class="bi bi-pencil-square"></i> Modifica
+                prodotto</button></a>
+    </div>
+    <div class="row">
+
+        <a><button class="btn btn-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteModal"><i
+                class="bi bi-trash"></i> Cancella prodotto</button></a>
+
+    </div>
+</div>
+
+<div class="modal" tabindex="-1" id="deleteModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cancellazione prodotto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="text-modal">
+                <p>Il prodotto scannerizzato verrà eliminato</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudere</button>
+                <button id="cancella" type="submit" class="btn btn-danger">Eliminare</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row text-center">
+    <h4 class="text-success" id="confirmProduct"></h4>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+<script>
+    const video = document.getElementById('camera');
+    const productIdSpan = document.getElementById('product-id');
+    const startSharingButton = document.getElementById('start-sharing');
+
+    startSharingButton.addEventListener('click', async () => {
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            video.srcObject = stream;
+
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            let first = true;
+
+            video.addEventListener('play', () => {
+                setInterval(() => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                    if (code) {
+                        productIdSpan.textContent = code.data;
+                        if(first){
+                            document.getElementById('manageProduct').style.display = 'inline';
+                            first = !first;
+                        }
+                        let editAnchor = document.getElementById('editProduct');
+                        editAnchor.href = '/products/edit/' + code.data;
+
+                        $(document).ready(function () {
+                            $('#cancella').on("click", function (e) {
+                                e.preventDefault();
+                                var id = code.data;
+                                $.ajax({
+                                    type: 'DELETE',
+                                    url: '/products/delete/' + id,
+                                    success: (data) => {
+                                        $('#start-sharing').hide();
+                                        $('#camera').hide();
+                                        $('#info_product').hide();
+                                        $('#manageProduct').hide();
+                                        $('#confirmProduct').text("Prodotto Cancellato");
+                                        function redirect(){
+                                            $(location).prop('href', '/products/')
+                                        };
+                                        window.setTimeout( redirect, 5000 );
+                                    },
+                                    error: (err) => {
+                                        console.log(err);
+                                    }
+                                }); 
+                            });
+                        });
+
+                    }
+                }, 500);
+            });
+        } catch (err) {
+            console.error("Errore nell'accesso alla condivisione dello schermo:", err);
+        }
+    });
+
+
+
+
+</script>
+{{> footer}}
